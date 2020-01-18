@@ -89,6 +89,8 @@ public class LCUChampSelectCallback
         static class ChampSelectTimer
         {
             public int    adjustedTimeLeftInPhase;
+            public long   internalNowInEpochMs;
+            public int    timeLeftInPhase;
             public String phase;
             
             @Override
@@ -96,6 +98,8 @@ public class LCUChampSelectCallback
             {
                 return "ChampSelectTimer{" +
                        "adjustedTimeLeftInPhase=" + adjustedTimeLeftInPhase +
+                       ", internalNowInEpochMs=" + internalNowInEpochMs +
+                       ", timeLeftInPhase=" + timeLeftInPhase +
                        ", phase='" + phase + '\'' +
                        '}';
             }
@@ -113,14 +117,17 @@ public class LCUChampSelectCallback
                 }
                 ChampSelectTimer that = (ChampSelectTimer) o;
                 return adjustedTimeLeftInPhase == that.adjustedTimeLeftInPhase &&
+                       internalNowInEpochMs == that.internalNowInEpochMs &&
+                       timeLeftInPhase == that.timeLeftInPhase &&
                        Objects.equals(phase, that.phase);
             }
             
             @Override
             public int hashCode()
             {
-                return Objects.hash(adjustedTimeLeftInPhase, phase);
+                return Objects.hash(adjustedTimeLeftInPhase, internalNowInEpochMs, timeLeftInPhase, phase);
             }
+            
         }
         
         static class AdjustedBanState
@@ -227,7 +234,7 @@ public class LCUChampSelectCallback
             public String spell2Id;
             public int    summonerId;
             public int    team;
-    
+            
             @Override
             public boolean equals(Object o)
             {
@@ -251,13 +258,13 @@ public class LCUChampSelectCallback
                        Objects.equals(spell1Id, that.spell1Id) &&
                        Objects.equals(spell2Id, that.spell2Id);
             }
-    
+            
             @Override
             public int hashCode()
             {
                 return Objects.hash(assignedPosition, cellId, championId, championPickIntent, playerType, selectedSkinId, spell1Id, spell2Id, summonerId, team);
             }
-    
+            
             @Override
             public String toString()
             {

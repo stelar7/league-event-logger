@@ -268,8 +268,8 @@ public class Server
     {
         JsonObject parent = new JsonObject();
         JsonObject time   = new JsonObject();
-        time.addProperty("duration", duration);
-        time.addProperty("end", end);
+        time.addProperty("duration", String.format("%.0f", duration));
+        time.addProperty("end", String.format("%.0f", end));
         parent.add(name, time);
         pushEvent("TIMER", parent.toString());
     }
@@ -527,13 +527,21 @@ public class Server
         return otherState;
     }
     
-    Map<Integer, AdjustedBanState> storedBanData = new HashMap<>();
+    Map<Integer, AdjustedBanState> storedBanData   = new HashMap<>();
+    long                           lastInternalNow = 0;
     
     public void handleUpdateEvent(ChampSelectData data)
     {
         Map<Integer, PlayerState>         newstate   = getTeamState(data);
         List<ChampSelectAction>           actionList = adjustActionList(data);
         Map<Integer, AdjustedPlayerState> otherState = getAdjustedStateMap(newstate, actionList);
+        
+        // for some reason the internal timer doesnt update when we click things..?
+        if (data.timer.internalNowInEpochMs != lastInternalNow)
+        {
+            pushTimer("PHASE_" + data.timer.phase, data.timer.adjustedTimeLeftInPhase, System.currentTimeMillis() + data.timer.adjustedTimeLeftInPhase);
+            lastInternalNow = data.timer.internalNowInEpochMs;
+        }
         
         List<ChampSelectAction> bans = actionList.stream()
                                                  .filter(a -> a.type.equalsIgnoreCase("ban"))
@@ -576,7 +584,7 @@ public class Server
     {
         if (summonerId == 0)
         {
-            return "Unknown summoner" ;
+            return "Unknown summoner";
         }
         
         return LCUApi.getSummoner(summonerId).get("displayName").getAsString();
@@ -586,7 +594,7 @@ public class Server
     {
         if (Objects.equals(id, "18446744073709551615") || Objects.equals(id, "0"))
         {
-            return "-1" ;
+            return "-1";
         }
         
         /*
