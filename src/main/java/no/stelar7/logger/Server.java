@@ -15,8 +15,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
@@ -105,10 +103,13 @@ public class Server
         
         Path file = Paths.get("D:\\LCU\\events.json");
         pushToFile(file, content);
+        
+        /*
         if (name.equalsIgnoreCase("FINISH"))
         {
-            finishGame(file);
+            finishGame(file.resolveSibling("games"));
         }
+        */
         
         pushToSockets(content);
     }
@@ -150,20 +151,6 @@ public class Server
         }
     }
     
-    
-    private void finishGame(Path file)
-    {
-        try
-        {
-            Path save = file.resolveSibling(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).replace(":", " ") + ".json");
-            Files.write(file, "]".getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
-            Files.copy(file, save);
-            Files.deleteIfExists(file);
-        } catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-    }
     
     private Thread createIngameThread()
     {

@@ -402,11 +402,12 @@ public class Client
             outputFilename = teamId + "\\" + index.getAndIncrement() + ".png";
             outputFile = outputBanLockedFolder.resolve(outputFilename);
             
+            
+            // replace the hover image with nothing?
             String inputReplaceFilename = "-1.png";
-            Path   inputReplaceFile     = inputBanLockedFolder.resolve(inputReplaceFilename);
+            Path   inputReplaceFile     = inputBanHoverFolder.resolve(inputReplaceFilename);
             String replaceFileName      = teamId + "\\" + playerId + ".png";
-            // should this be hover?
-            Path replaceFile = outputBanLockedFolder.resolve(replaceFileName);
+            Path replaceFile = outputBanHoverFolder.resolve(replaceFileName);
             
             replaceFileAndUpdateTimestamp(inputReplaceFile, replaceFile);
         }
