@@ -405,7 +405,8 @@ public class Client
             String inputReplaceFilename = "-1.png";
             Path   inputReplaceFile     = inputBanLockedFolder.resolve(inputReplaceFilename);
             String replaceFileName      = teamId + "\\" + playerId + ".png";
-            Path   replaceFile          = outputBanHoverFolder.resolve(replaceFileName);
+            // should this be hover?
+            Path replaceFile = outputBanLockedFolder.resolve(replaceFileName);
             
             replaceFileAndUpdateTimestamp(inputReplaceFile, replaceFile);
         }
@@ -593,18 +594,17 @@ public class Client
     
     private void fillEmptyChamps()
     {
-        List<Path> outputFolders = Arrays.asList(outputSelectFolder, outputBanHoverFolder, outputBanLockedFolder);
-        for (Path folder : outputFolders)
+        // for each team in a game
+        for (int i = 1; i <= 2; i++)
         {
-            // for each team in a game
-            for (int i = 1; i <= 2; i++)
+            // for each player in a game
+            for (int j = 0; j < 6 * 2; j++)
             {
-                // for each player in a game
-                for (int j = 0; j < 6 * 2; j++)
-                {
-                    String outputFilename = i + "\\" + j + ".png";
-                    replaceFileAndUpdateTimestamp(inputSelectFolder.resolve("-1.png"), folder.resolve(outputFilename));
-                }
+                String outputFilename = i + "\\" + j + ".png";
+                
+                replaceFileAndUpdateTimestamp(inputSelectFolder.resolve("-1.png"), outputSelectFolder.resolve(outputFilename));
+                replaceFileAndUpdateTimestamp(inputBanHoverFolder.resolve("-1.png"), outputBanHoverFolder.resolve(outputFilename));
+                replaceFileAndUpdateTimestamp(inputBanLockedFolder.resolve("-1.png"), outputBanLockedFolder.resolve(outputFilename));
             }
         }
     }
