@@ -25,31 +25,31 @@ public class Server
 {
     public static void main(String[] args)
     {
-        new Server(2997);
+        new Server(2997, true, true);
     }
     
-    int serverPort = 2997;
-    
-    public Server(int serverPort)
+    public Server(int serverPort, boolean ingameThread, boolean testThread)
     {
-        this.serverPort = serverPort;
-        
-        Thread socket = createSocketThread();
+        Thread socket = createSocketThread(serverPort);
         socket.start();
         
-        Thread th  = createLCUThread();
-        Thread th2 = createIngameThread();
+        Thread th = createLCUThread();
         th.start();
-        th2.start();
         
-        Thread connectionTest = createTestSocketThread();
-        connectionTest.start();
-        /*
-        //getCurrentState();
-         */
+        if (ingameThread)
+        {
+            Thread th2 = createIngameThread();
+            th2.start();
+        }
+        
+        if (testThread)
+        {
+            Thread connectionTest = createTestSocketThread(serverPort);
+            connectionTest.start();
+        }
     }
     
-    private Thread createTestSocketThread()
+    private Thread createTestSocketThread(int serverPort)
     {
         return new Thread(() -> {
             try
@@ -78,7 +78,7 @@ public class Server
     
     List<Socket> connections = new ArrayList<>();
     
-    private Thread createSocketThread()
+    private Thread createSocketThread(int serverPort)
     {
         return new Thread(() -> {
             try

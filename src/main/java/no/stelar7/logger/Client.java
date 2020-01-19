@@ -25,30 +25,43 @@ import java.util.stream.Collectors;
 
 public class Client
 {
-    int        serverPort = 2997;
-    JsonParser parser     = new JsonParser();
+    JsonParser parser = new JsonParser();
     
-    Path inputFolder          = Paths.get("D:\\LCU\\INPUT");
-    Path inputSpellFolder     = inputFolder.resolve("spells");
-    Path inputSelectFolder    = inputFolder.resolve("select");
-    Path inputBanHoverFolder  = inputFolder.resolve("banHover");
-    Path inputBanLockedFolder = inputFolder.resolve("banLocked");
+    Path inputFolder;
+    Path inputSpellFolder;
+    Path inputSelectFolder;
+    Path inputBanHoverFolder;
+    Path inputBanLockedFolder;
     
-    Path outputFolder          = Paths.get("D:\\LCU\\OUTPUT");
-    Path outputNameFolder      = outputFolder.resolve("names");
-    Path outputSpellFolder     = outputFolder.resolve("spells");
-    Path outputSelectFolder    = outputFolder.resolve("select");
-    Path outputBanHoverFolder  = outputFolder.resolve("banHover");
-    Path outputBanLockedFolder = outputFolder.resolve("banLocked");
+    Path outputFolder;
+    Path outputPlayerNameFolder;
+    Path outputChampionNameFolder;
+    Path outputSpellFolder;
+    Path outputSelectFolder;
+    Path outputBanHoverFolder;
+    Path outputBanLockedFolder;
     
     public static void main(String[] args)
     {
-        new Client(2997);
+        new Client(null, null, 2997);
     }
     
-    public Client(int serverPort)
+    public Client(Path inputFolder, Path outputFolder, int serverPort)
     {
-        this.serverPort = serverPort;
+        this.inputFolder = Paths.get("D:\\LCU\\INPUT");
+        inputSpellFolder = inputFolder.resolve("spells");
+        inputSelectFolder = inputFolder.resolve("select");
+        inputBanHoverFolder = inputFolder.resolve("banHover");
+        inputBanLockedFolder = inputFolder.resolve("banLocked");
+        
+        
+        this.outputFolder = Paths.get("D:\\LCU\\OUTPUT");
+        outputPlayerNameFolder = outputFolder.resolve("names").resolve("players");
+        outputChampionNameFolder = outputFolder.resolve("names").resolve("champions");
+        outputSpellFolder = outputFolder.resolve("spells");
+        outputSelectFolder = outputFolder.resolve("select");
+        outputBanHoverFolder = outputFolder.resolve("banHover");
+        outputBanLockedFolder = outputFolder.resolve("banLocked");
         
         try
         {
@@ -67,7 +80,7 @@ public class Client
         }
         
         
-        Thread inputThread = createInputThread();
+        Thread inputThread = createInputThread(serverPort);
         inputThread.start();
     }
     
@@ -78,11 +91,12 @@ public class Client
         Files.createDirectories(inputBanHoverFolder);
         Files.createDirectories(inputBanLockedFolder);
         
-        Files.createDirectories(outputNameFolder);
         Files.createDirectories(outputSpellFolder);
         Files.createDirectories(outputSelectFolder);
         Files.createDirectories(outputBanHoverFolder);
         Files.createDirectories(outputBanLockedFolder);
+        Files.createDirectories(outputPlayerNameFolder);
+        Files.createDirectories(outputChampionNameFolder);
     }
     
     private void downloadBaseImages(Map<Integer, StaticChampion> champions, Map<Integer, StaticSummonerSpell> spells) throws IOException
@@ -105,7 +119,6 @@ public class Client
         
         List<Integer> ids = new ArrayList<>(champions.keySet());
         ids.add(-1);
-        
         ids.stream()
            .parallel()
            .forEach(i -> {
@@ -137,6 +150,8 @@ public class Client
                                                .collect(Collectors.toList());
         
         ids = new ArrayList<>(spells.keySet());
+        ids.add(-1);
+        
         ids.stream()
            .parallel()
            .forEach(i -> {
@@ -146,7 +161,7 @@ public class Client
                if (!summonerSpellFiles.contains(filename))
                {
                    System.out.println("Downloading missing image for summoner spell " + i);
-                   optUrl.ifPresentOrElse(url -> downloadFile(inputSpellFolder, filename, url), () -> System.out.println("No file found for spell id " + i));
+                   optUrl.ifPresentOrElse(url -> downloadFile(inputSpellFolder, filename, url), () -> copyFileFromLocal("noSpell.png", inputSpellFolder, filename));
                }
            });
     }
@@ -163,11 +178,11 @@ public class Client
         }
     }
     
-    private void copyFile(Path inputBanHoverFolder, Path inputSelectFolder, String filename)
+    private void copyFile(Path inputfolder, Path outputfolder, String filename)
     {
         try
         {
-            Files.copy(inputBanHoverFolder.resolve(filename), inputSelectFolder.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(inputfolder.resolve(filename), outputfolder.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e)
         {
             e.printStackTrace();
@@ -248,7 +263,7 @@ public class Client
         }
     }
     
-    private Thread createInputThread()
+    private Thread createInputThread(int serverPort)
     {
         return new Thread(() -> {
             try
@@ -324,6 +339,7 @@ public class Client
                 }
             } catch (IOException | InterruptedException e)
             {
+                System.err.println("Unable to connect to the server, make sure its started first!");
                 e.printStackTrace();
             }
         }, "Input thread");
@@ -354,13 +370,15 @@ public class Client
         uuidToInfoAndIndex.clear();
         teamBanIndex.clear();
         fillEmptyChamps();
+        fillEmptySpells();
         writeSummonerNames(false);
+        writeChampionNames(false);
     }
     
     
     Map<Integer, AtomicInteger> teamBanIndex = new HashMap<>();
     
-    private void handleChampionBanEvent(JsonElement jsonElement) throws IOException
+    private void handleChampionBanEvent(JsonElement jsonElement)
     {
         ChampionBanInfo info       = Utils.getGson().fromJson(jsonElement, ChampionBanInfo.class);
         int             championId = info.champion;
@@ -372,37 +390,36 @@ public class Client
         String                            inputFilename = championId + ".png";
         Path                              inputFile     = inputBanLockedFolder.resolve(inputFilename);
         Pair<ChampionSelectInfo, Integer> teamIndex     = uuidToInfoAndIndex.get(info.uuid);
+        int                               teamId        = teamIndex.getKey().team;
+        int                               playerId      = teamIndex.getValue();
         
-        String outputFilename = teamIndex.getKey() + "\\" + teamIndex.getValue() + ".png";
+        String outputFilename = teamId + "\\" + playerId + ".png";
         Path   outputFile     = outputBanHoverFolder.resolve(outputFilename);
         
         if (info.lockedIn)
         {
-            AtomicInteger index = teamBanIndex.computeIfAbsent(teamIndex.getKey().team, k -> new AtomicInteger(0));
-            outputFilename = teamIndex.getKey() + "\\" + index.getAndIncrement() + ".png";
+            AtomicInteger index = teamBanIndex.computeIfAbsent(teamId, k -> new AtomicInteger(0));
+            outputFilename = teamId + "\\" + index.getAndIncrement() + ".png";
             outputFile = outputBanLockedFolder.resolve(outputFilename);
             
             String inputReplaceFilename = "-1.png";
             Path   inputReplaceFile     = inputBanLockedFolder.resolve(inputReplaceFilename);
-            String replaceFileName      = teamIndex.getKey() + "\\" + teamIndex.getValue() + ".png";
+            String replaceFileName      = teamId + "\\" + playerId + ".png";
             Path   replaceFile          = outputBanHoverFolder.resolve(replaceFileName);
             
-            Files.createDirectories(replaceFile.getParent());
-            Files.copy(inputReplaceFile, replaceFile, StandardCopyOption.REPLACE_EXISTING);
-            
-            Files.setLastModifiedTime(replaceFile, FileTime.from(Instant.now()));
+            replaceFileAndUpdateTimestamp(inputReplaceFile, replaceFile);
         }
         
-        Files.createDirectories(outputFile.getParent());
-        Files.copy(inputFile, outputFile, StandardCopyOption.REPLACE_EXISTING);
-        
-        Files.setLastModifiedTime(outputFile, FileTime.from(Instant.now()));
+        replaceFileAndUpdateTimestamp(inputFile, outputFile);
     }
     
-    private void handleChampionSelectEvent(JsonElement jsonElement) throws IOException
+    private void handleChampionSelectEvent(JsonElement jsonElement)
     {
-        ChampionSelectInfo info       = Utils.getGson().fromJson(jsonElement, ChampionSelectInfo.class);
-        StringBuilder      idExtender = new StringBuilder(String.valueOf(info.skin));
+        ChampionSelectInfo info          = Utils.getGson().fromJson(jsonElement, ChampionSelectInfo.class);
+        int                playerId      = uuidToInfoAndIndex.get(info.uuid).getValue();
+        String             teamAndPlayer = info.team + "\\" + playerId;
+        
+        StringBuilder idExtender = new StringBuilder(String.valueOf(info.skin));
         while (idExtender.length() < 6)
         {
             idExtender.insert(0, "0");
@@ -414,16 +431,42 @@ public class Client
             championId = -1;
         }
         
-        String inputFilename = championId + ".png";
-        Path   inputFile     = inputSelectFolder.resolve(inputFilename);
-        
-        String outputFilename = info.team + "\\" + uuidToInfoAndIndex.get(info.uuid).getValue() + ".png";
+        // champion
+        String inputFilename  = championId + ".png";
+        Path   inputFile      = inputSelectFolder.resolve(inputFilename);
+        String outputFilename = teamAndPlayer + ".png";
         Path   outputFile     = outputSelectFolder.resolve(outputFilename);
+        replaceFileAndUpdateTimestamp(inputFile, outputFile);
+        outputFilename = teamAndPlayer + ".txt";
+        outputFile = outputChampionNameFolder.resolve(outputFilename);
+        writeStringToFile(outputFile, getChampionNameFromId(championId));
         
-        Files.createDirectories(outputFile.getParent());
-        Files.copy(inputFile, outputFile, StandardCopyOption.REPLACE_EXISTING);
         
-        Files.setLastModifiedTime(outputFile, FileTime.from(Instant.now()));
+        // summmoner spells
+        inputFilename = info.spell1Id + ".png";
+        inputFile = inputSpellFolder.resolve(inputFilename);
+        outputFilename = teamAndPlayer + "_1" + ".png";
+        outputFile = outputSpellFolder.resolve(outputFilename);
+        replaceFileAndUpdateTimestamp(inputFile, outputFile);
+        
+        inputFilename = info.spell2Id + ".png";
+        inputFile = inputSpellFolder.resolve(inputFilename);
+        outputFilename = teamAndPlayer + "_2" + ".png";
+        outputFile = outputSpellFolder.resolve(outputFilename);
+        replaceFileAndUpdateTimestamp(inputFile, outputFile);
+    }
+    
+    private void replaceFileAndUpdateTimestamp(Path inputFile, Path outputFile)
+    {
+        try
+        {
+            Files.createDirectories(outputFile.getParent());
+            Files.copy(inputFile, outputFile, StandardCopyOption.REPLACE_EXISTING);
+            Files.setLastModifiedTime(outputFile, FileTime.from(Instant.now()));
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+        }
     }
     
     Map<Integer, Pair<ChampionSelectInfo, Integer>> uuidToInfoAndIndex = new HashMap<>();
@@ -443,60 +486,80 @@ public class Client
         });
         
         fillEmptyChamps();
+        fillEmptySpells();
         writeSummonerNames(true);
+        writeChampionNames(true);
+    }
+    
+    private void writeStringToFile(Path file, String data)
+    {
+        try
+        {
+            Files.createDirectories(file.getParent());
+            Files.write(file, data.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            Files.setLastModifiedTime(file, FileTime.from(Instant.now()));
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+    }
+    
+    private String getChampionNameFromId(int id)
+    {
+        Map<Integer, StaticChampion> champions = DDragonAPI.getInstance().getChampions();
+        StaticChampion               champ     = champions.getOrDefault(id, null);
+        return champ == null ? "" : champ.getName();
+    }
+    
+    private void writeChampionNames(boolean flag)
+    {
+        if (flag)
+        {
+            uuidToInfoAndIndex.forEach((uuid, ti) -> {
+                ChampionSelectInfo inf        = ti.getKey();
+                Path               outputFile = outputChampionNameFolder.resolve(inf.team + "\\" + ti.getValue() + ".txt");
+                
+                int id = inf.skin / 1000;
+                writeStringToFile(outputFile, getChampionNameFromId(id));
+            });
+        } else
+        {
+            // for each team in a game
+            for (int i = 1; i <= 2; i++)
+            {
+                Path storeFolder = outputChampionNameFolder.resolve(String.valueOf(i));
+                
+                // for each player in a game
+                for (int j = 0; j < 6; j++)
+                {
+                    writeStringToFile(storeFolder.resolve(j + ".txt"), "");
+                }
+            }
+        }
     }
     
     private void writeSummonerNames(boolean flag)
     {
-        try
+        if (flag)
         {
-            Files.createDirectories(outputNameFolder);
-            
-            if (flag)
+            uuidToInfoAndIndex.forEach((uuid, ti) -> {
+                ChampionSelectInfo inf        = ti.getKey();
+                Path               outputFile = outputPlayerNameFolder.resolve(inf.team + "\\" + ti.getValue() + ".txt");
+                writeStringToFile(outputFile, inf.name);
+            });
+        } else
+        {
+            // for each team in a game
+            for (int i = 1; i <= 2; i++)
             {
-                uuidToInfoAndIndex.forEach((uuid, ti) -> {
-                    try
-                    {
-                        ChampionSelectInfo inf = ti.getKey();
-                        byte[]             data;
-                        
-                        // might break if someone is named bot, but doubt it....
-                        if (inf.name.equalsIgnoreCase("BOT"))
-                        {
-                            int id = inf.skin / 1000;
-                            
-                            Map<Integer, StaticChampion> champions = DDragonAPI.getInstance().getChampions();
-                            StaticChampion               champ     = champions.get(id);
-                            data = ("[BOT] " + champ.getName()).getBytes(StandardCharsets.UTF_8);
-                        } else
-                        {
-                            data = inf.name.getBytes(StandardCharsets.UTF_8);
-                        }
-                        
-                        Files.write(outputNameFolder.resolve(inf.team + "\\" + ti.getValue() + ".txt"), data);
-                    } catch (IOException e)
-                    {
-                        e.printStackTrace();
-                    }
-                });
-            } else
-            {
-                // for each team in a game
-                for (int i = 1; i <= 2; i++)
+                Path storeFolder = outputPlayerNameFolder.resolve(String.valueOf(i));
+                
+                // for each player in a game
+                for (int j = 0; j < 6; j++)
                 {
-                    Path storeFolder = outputNameFolder.resolve(String.valueOf(i));
-                    Files.createDirectories(storeFolder);
-                    
-                    // for each player in a game
-                    for (int j = 0; j < 6; j++)
-                    {
-                        Files.write(storeFolder.resolve(j + ".txt"), new byte[0], StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-                    }
+                    writeStringToFile(storeFolder.resolve(j + ".txt"), "");
                 }
             }
-        } catch (IOException e)
-        {
-            e.printStackTrace();
         }
     }
     
@@ -506,32 +569,43 @@ public class Client
         teamBanIndex.clear();
         
         fillEmptyChamps();
+        fillEmptySpells();
         writeSummonerNames(false);
+        writeChampionNames(false);
+    }
+    
+    private void fillEmptySpells()
+    {
+        // for each team in a game
+        for (int i = 1; i <= 2; i++)
+        {
+            // for each player in a game
+            for (int j = 0; j < 6 * 2; j++)
+            {
+                String outputFilename = i + "\\" + j + "_1.png";
+                replaceFileAndUpdateTimestamp(inputSpellFolder.resolve("-1.png"), outputSpellFolder.resolve(outputFilename));
+                
+                outputFilename = i + "\\" + j + "_2.png";
+                replaceFileAndUpdateTimestamp(inputSpellFolder.resolve("-1.png"), outputSpellFolder.resolve(outputFilename));
+            }
+        }
     }
     
     private void fillEmptyChamps()
     {
-        try
+        List<Path> outputFolders = Arrays.asList(outputSelectFolder, outputBanHoverFolder, outputBanLockedFolder);
+        for (Path folder : outputFolders)
         {
-            List<Path> outputFolders = Arrays.asList(outputSelectFolder, outputBanHoverFolder, outputBanLockedFolder);
-            for (Path folder : outputFolders)
+            // for each team in a game
+            for (int i = 1; i <= 2; i++)
             {
-                // for each team in a game
-                for (int i = 1; i <= 2; i++)
+                // for each player in a game
+                for (int j = 0; j < 6 * 2; j++)
                 {
-                    Files.createDirectories(folder.resolve(String.valueOf(i)));
-                    
-                    // for each player in a game
-                    for (int j = 0; j < 6 * 2; j++)
-                    {
-                        String outputFilename = i + "\\" + j + ".png";
-                        Files.copy(inputSelectFolder.resolve("-1.png"), folder.resolve(outputFilename), StandardCopyOption.REPLACE_EXISTING);
-                    }
+                    String outputFilename = i + "\\" + j + ".png";
+                    replaceFileAndUpdateTimestamp(inputSelectFolder.resolve("-1.png"), folder.resolve(outputFilename));
                 }
             }
-        } catch (IOException e)
-        {
-            e.printStackTrace();
         }
     }
     
