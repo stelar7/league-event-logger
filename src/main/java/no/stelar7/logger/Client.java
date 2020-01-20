@@ -25,32 +25,33 @@ import java.util.stream.Collectors;
 
 public class Client
 {
-    JsonParser parser = new JsonParser();
-    
     Path inputFolder;
     Path inputSpellFolder;
-    Path inputSelectFolder;
     Path inputBanHoverFolder;
     Path inputBanLockedFolder;
+    Path inputSelectHoverFolder;
+    Path inputSelectLockedFolder;
     
     Path outputFolder;
     Path outputPlayerNameFolder;
     Path outputChampionNameFolder;
     Path outputSpellFolder;
-    Path outputSelectFolder;
     Path outputBanHoverFolder;
     Path outputBanLockedFolder;
+    Path outputSelectHoverFolder;
+    Path outputSelectLockedFolder;
     
     public static void main(String[] args)
     {
-        new Client(null, null, 2997);
+        new Client(Paths.get("D:\\LCU\\INPUT"), Paths.get("D:\\LCU\\OUTPUT"), 2997);
     }
     
     public Client(Path inputFolder, Path outputFolder, int serverPort)
     {
         this.inputFolder = Paths.get("D:\\LCU\\INPUT");
         inputSpellFolder = inputFolder.resolve("spells");
-        inputSelectFolder = inputFolder.resolve("select");
+        inputSelectHoverFolder = inputFolder.resolve("selectHover");
+        inputSelectLockedFolder = inputFolder.resolve("selectLocked");
         inputBanHoverFolder = inputFolder.resolve("banHover");
         inputBanLockedFolder = inputFolder.resolve("banLocked");
         
@@ -59,7 +60,8 @@ public class Client
         outputPlayerNameFolder = outputFolder.resolve("names").resolve("players");
         outputChampionNameFolder = outputFolder.resolve("names").resolve("champions");
         outputSpellFolder = outputFolder.resolve("spells");
-        outputSelectFolder = outputFolder.resolve("select");
+        outputSelectHoverFolder = outputFolder.resolve("selectHover");
+        outputSelectLockedFolder = outputFolder.resolve("selectLocked");
         outputBanHoverFolder = outputFolder.resolve("banHover");
         outputBanLockedFolder = outputFolder.resolve("banLocked");
         
@@ -87,34 +89,49 @@ public class Client
     private void setupFolders() throws IOException
     {
         Files.createDirectories(inputSpellFolder);
-        Files.createDirectories(inputSelectFolder);
         Files.createDirectories(inputBanHoverFolder);
         Files.createDirectories(inputBanLockedFolder);
+        Files.createDirectories(inputSelectHoverFolder);
+        Files.createDirectories(inputSelectLockedFolder);
         
         Files.createDirectories(outputSpellFolder);
-        Files.createDirectories(outputSelectFolder);
         Files.createDirectories(outputBanHoverFolder);
         Files.createDirectories(outputBanLockedFolder);
         Files.createDirectories(outputPlayerNameFolder);
+        Files.createDirectories(outputSelectHoverFolder);
+        Files.createDirectories(outputSelectLockedFolder);
         Files.createDirectories(outputChampionNameFolder);
     }
     
     private void downloadBaseImages(Map<Integer, StaticChampion> champions, Map<Integer, StaticSummonerSpell> spells) throws IOException
     {
         System.out.println("Feching missing images...");
-        List<String> selectFiles = Files.list(inputSelectFolder)
-                                        .map(Path::toString)
-                                        .map(s -> s.substring(s.lastIndexOf('\\') + 1))
-                                        .collect(Collectors.toList());
+        List<String> selectFilesLocked = Files.list(inputSelectLockedFolder)
+                                              .map(Path::toString)
+                                              .map(s -> s.substring(s.lastIndexOf('\\') + 1))
+                                              // remove ext
+                                              .map(s -> s.substring(0, s.length() - 4))
+                                              .collect(Collectors.toList());
+        
+        List<String> selectFilesHovered = Files.list(inputSelectHoverFolder)
+                                               .map(Path::toString)
+                                               .map(s -> s.substring(s.lastIndexOf('\\') + 1))
+                                               // remove ext
+                                               .map(s -> s.substring(0, s.length() - 4))
+                                               .collect(Collectors.toList());
         
         List<String> hoverBanFiles = Files.list(inputBanHoverFolder)
                                           .map(Path::toString)
                                           .map(s -> s.substring(s.lastIndexOf('\\') + 1))
+                                          // remove ext
+                                          .map(s -> s.substring(0, s.length() - 4))
                                           .collect(Collectors.toList());
         
         List<String> lockedBanFiles = Files.list(inputBanLockedFolder)
                                            .map(Path::toString)
                                            .map(s -> s.substring(s.lastIndexOf('\\') + 1))
+                                           // remove ext
+                                           .map(s -> s.substring(0, s.length() - 4))
                                            .collect(Collectors.toList());
         
         List<Integer> ids = new ArrayList<>(champions.keySet());
@@ -122,31 +139,39 @@ public class Client
         ids.stream()
            .parallel()
            .forEach(i -> {
-               String           filename = i + ".png";
+               String           filename = String.valueOf(i);
                Optional<String> optUrl   = Optional.ofNullable(champions.get(i)).map(champ -> ImageAPI.getInstance().getSquare(champ, null));
             
-               if (!selectFiles.contains(filename))
+               if (!selectFilesHovered.contains(filename))
                {
-                   System.out.println("Downloading missing select image for champion " + i);
-                   optUrl.ifPresentOrElse(url -> downloadFile(inputSelectFolder, filename, url), () -> copyFileFromLocal("noChamp.png", inputSelectFolder, filename));
+                   System.out.println("Downloading missing select hover image for champion " + i);
+                   optUrl.ifPresentOrElse(url -> downloadFile(inputSelectHoverFolder, filename + ".png", url), () -> copyFileFromLocal("noChamp.png", inputSelectHoverFolder, filename));
+               }
+            
+               if (!selectFilesLocked.contains(filename))
+               {
+                   System.out.println("Downloading missing select locked image for champion " + i);
+                   copyFile(findFile(inputSelectHoverFolder, filename), inputSelectLockedFolder);
                }
             
                if (!hoverBanFiles.contains(filename))
                {
                    System.out.println("Downloading missing ban hover image for champion " + i);
-                   copyFile(inputSelectFolder, inputBanHoverFolder, filename);
+                   copyFile(findFile(inputSelectHoverFolder, filename), inputBanHoverFolder);
                }
             
                if (!lockedBanFiles.contains(filename))
                {
                    System.out.println("Downloading missing ban locked image for champion " + i);
-                   copyFileAndOverlay(inputSelectFolder, inputBanLockedFolder, filename, "banOverlay.png");
+                   copyFileAndOverlay(findFile(inputSelectHoverFolder, filename), inputBanLockedFolder, "banOverlay.png");
                }
            });
         
         List<String> summonerSpellFiles = Files.list(inputSpellFolder)
                                                .map(Path::toString)
                                                .map(s -> s.substring(s.lastIndexOf('\\') + 1))
+                                               // remove ext
+                                               .map(s -> s.substring(0, s.length() - 4))
                                                .collect(Collectors.toList());
         
         ids = new ArrayList<>(spells.keySet());
@@ -155,13 +180,13 @@ public class Client
         ids.stream()
            .parallel()
            .forEach(i -> {
-               String           filename = i + ".png";
+               String           filename = String.valueOf(i);
                Optional<String> optUrl   = Optional.ofNullable(spells.get(i)).map(spell -> ImageAPI.getInstance().getSummonerSpell(spell, null));
             
                if (!summonerSpellFiles.contains(filename))
                {
                    System.out.println("Downloading missing image for summoner spell " + i);
-                   optUrl.ifPresentOrElse(url -> downloadFile(inputSpellFolder, filename, url), () -> copyFileFromLocal("noSpell.png", inputSpellFolder, filename));
+                   optUrl.ifPresentOrElse(url -> downloadFile(inputSpellFolder, filename + ".png", url), () -> copyFileFromLocal("noSpell.png", inputSpellFolder, filename));
                }
            });
     }
@@ -170,8 +195,20 @@ public class Client
     {
         try
         {
-            InputStream is = Client.class.getClassLoader().getResourceAsStream(localName);
-            Files.copy(is, outputFolder.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
+            String      ext = localName.substring(localName.length() - 4);
+            InputStream is  = Client.class.getClassLoader().getResourceAsStream(localName);
+            Files.copy(is, outputFolder.resolve(filename + ext), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+    }
+    
+    private void copyFile(Path inputFile, Path outputfolder)
+    {
+        try
+        {
+            Files.copy(inputFile, outputfolder.resolve(inputFile.getFileName()), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e)
         {
             e.printStackTrace();
@@ -189,11 +226,11 @@ public class Client
         }
     }
     
-    private synchronized void copyFileAndOverlay(Path inputFolder, Path outputFolder, String filename, String overlayFilename)
+    private synchronized void copyFileAndOverlay(Path inputFile, Path outputFolder, String overlayFilename)
     {
         try
         {
-            BufferedImage downloaded = ImageIO.read(inputFolder.resolve(filename).toFile());
+            BufferedImage downloaded = ImageIO.read(inputFile.toFile());
             BufferedImage internal   = ImageIO.read(Client.class.getClassLoader().getResourceAsStream(overlayFilename));
             
             int           maxw     = Math.max(downloaded.getWidth(), internal.getWidth());
@@ -208,9 +245,10 @@ public class Client
             g.drawImage(downloaded, 12, 15, maxw - 30, maxh - 30, null);
             g.drawImage(internal, -18, -15, maxw + 30, maxh + 30, null);
             
-            ImageIO.write(combined, "PNG", outputFolder.resolve(filename).toFile());
+            ImageIO.write(combined, "PNG", outputFolder.resolve(inputFile.getFileName()).toFile());
         } catch (IOException e)
         {
+            System.out.println();
             e.printStackTrace();
         }
     }
@@ -280,7 +318,7 @@ public class Client
                     while (is.ready())
                     {
                         String     line = is.readLine();
-                        JsonObject obj  = parser.parse(line).getAsJsonObject();
+                        JsonObject obj  = JsonParser.parseString(line).getAsJsonObject();
                         for (String key : obj.keySet())
                         {
                             //System.out.println(key);
@@ -340,7 +378,7 @@ public class Client
             } catch (IOException | InterruptedException e)
             {
                 System.err.println("Unable to connect to the server, make sure its started first!");
-                e.printStackTrace();
+                System.exit(0);
             }
         }, "Input thread");
     }
@@ -387,32 +425,39 @@ public class Client
             championId = -1;
         }
         
-        String                            inputFilename = championId + ".png";
-        Path                              inputFile     = inputBanLockedFolder.resolve(inputFilename);
-        Pair<ChampionSelectInfo, Integer> teamIndex     = uuidToInfoAndIndex.get(info.uuid);
-        int                               teamId        = teamIndex.getKey().team;
-        int                               playerId      = teamIndex.getValue();
+        Path   inputFile = findFile(inputBanLockedFolder, String.valueOf(championId));
+        String ext       = getExt(inputFile);
         
-        String outputFilename = teamId + "\\" + playerId + ".png";
+        Pair<ChampionSelectInfo, Integer> teamIndex = uuidToInfoAndIndex.get(info.uuid);
+        int                               teamId    = teamIndex.getKey().team;
+        int                               playerId  = teamIndex.getValue();
+        
+        String outputFilename = teamId + "\\" + playerId + ext;
         Path   outputFile     = outputBanHoverFolder.resolve(outputFilename);
         
         if (info.lockedIn)
         {
             AtomicInteger index = teamBanIndex.computeIfAbsent(teamId, k -> new AtomicInteger(0));
-            outputFilename = teamId + "\\" + index.getAndIncrement() + ".png";
+            outputFilename = teamId + "\\" + index.getAndIncrement() + ext;
             outputFile = outputBanLockedFolder.resolve(outputFilename);
             
             
             // replace the hover image with nothing?
-            String inputReplaceFilename = "-1.png";
-            Path   inputReplaceFile     = inputBanHoverFolder.resolve(inputReplaceFilename);
-            String replaceFileName      = teamId + "\\" + playerId + ".png";
-            Path replaceFile = outputBanHoverFolder.resolve(replaceFileName);
+            String inputReplaceFilename = "-1";
+            Path   inputReplaceFile     = findFile(inputBanHoverFolder, inputReplaceFilename);
+            String replaceExt           = getExt(inputReplaceFile);
+            String replaceFileName      = teamId + "\\" + playerId + replaceExt;
+            Path   replaceFile          = outputBanHoverFolder.resolve(replaceFileName);
             
             replaceFileAndUpdateTimestamp(inputReplaceFile, replaceFile);
         }
         
         replaceFileAndUpdateTimestamp(inputFile, outputFile);
+    }
+    
+    private String getExt(Path path)
+    {
+        return path.getFileName().toString().substring(path.getFileName().toString().length() - 4);
     }
     
     private void handleChampionSelectEvent(JsonElement jsonElement)
@@ -434,26 +479,41 @@ public class Client
         }
         
         // champion
-        String inputFilename  = championId + ".png";
-        Path   inputFile      = inputSelectFolder.resolve(inputFilename);
-        String outputFilename = teamAndPlayer + ".png";
-        Path   outputFile     = outputSelectFolder.resolve(outputFilename);
+        Path inputPath  = info.lockedIn ? inputSelectLockedFolder : inputSelectHoverFolder;
+        Path outputPath = info.lockedIn ? outputSelectLockedFolder : outputSelectHoverFolder;
+        
+        Path   inputFile      = findFile(inputPath, String.valueOf(championId));
+        String inputExt       = getExt(inputFile);
+        String outputFilename = teamAndPlayer + inputExt;
+        Path   outputFile     = outputPath.resolve(outputFilename);
         replaceFileAndUpdateTimestamp(inputFile, outputFile);
+        
+        if (info.lockedIn)
+        {
+            inputFile = findFile(inputSelectHoverFolder, "-1");
+            inputExt = getExt(inputFile);
+            outputFilename = teamAndPlayer + inputExt;
+            outputFile = outputSelectHoverFolder.resolve(outputFilename);
+            replaceFileAndUpdateTimestamp(inputFile, outputFile);
+        }
+        
+        
+        // champion name
         outputFilename = teamAndPlayer + ".txt";
         outputFile = outputChampionNameFolder.resolve(outputFilename);
         writeStringToFile(outputFile, getChampionNameFromId(championId));
         
         
         // summmoner spells
-        inputFilename = info.spell1Id + ".png";
-        inputFile = inputSpellFolder.resolve(inputFilename);
-        outputFilename = teamAndPlayer + "_1" + ".png";
+        inputFile = findFile(inputSpellFolder, info.spell1Id);
+        inputExt = getExt(inputFile);
+        outputFilename = teamAndPlayer + "_1" + inputExt;
         outputFile = outputSpellFolder.resolve(outputFilename);
         replaceFileAndUpdateTimestamp(inputFile, outputFile);
         
-        inputFilename = info.spell2Id + ".png";
-        inputFile = inputSpellFolder.resolve(inputFilename);
-        outputFilename = teamAndPlayer + "_2" + ".png";
+        inputFile = findFile(inputSpellFolder, info.spell2Id);
+        inputExt = getExt(inputFile);
+        outputFilename = teamAndPlayer + "_2" + inputExt;
         outputFile = outputSpellFolder.resolve(outputFilename);
         replaceFileAndUpdateTimestamp(inputFile, outputFile);
     }
@@ -584,11 +644,14 @@ public class Client
             // for each player in a game
             for (int j = 0; j < 6 * 2; j++)
             {
-                String outputFilename = i + "\\" + j + "_1.png";
-                replaceFileAndUpdateTimestamp(inputSpellFolder.resolve("-1.png"), outputSpellFolder.resolve(outputFilename));
+                Path   inFile = findFile(inputSpellFolder, "-1");
+                String ext    = getExt(inFile);
                 
-                outputFilename = i + "\\" + j + "_2.png";
-                replaceFileAndUpdateTimestamp(inputSpellFolder.resolve("-1.png"), outputSpellFolder.resolve(outputFilename));
+                String outputFilename = i + "\\" + j + "_1" + ext;
+                replaceFileAndUpdateTimestamp(inFile, outputSpellFolder.resolve(outputFilename));
+                
+                outputFilename = i + "\\" + j + "_2" + ext;
+                replaceFileAndUpdateTimestamp(inFile, outputSpellFolder.resolve(outputFilename));
             }
         }
     }
@@ -601,12 +664,39 @@ public class Client
             // for each player in a game
             for (int j = 0; j < 6 * 2; j++)
             {
-                String outputFilename = i + "\\" + j + ".png";
+                String outputFilename = i + "\\" + j;
                 
-                replaceFileAndUpdateTimestamp(inputSelectFolder.resolve("-1.png"), outputSelectFolder.resolve(outputFilename));
-                replaceFileAndUpdateTimestamp(inputBanHoverFolder.resolve("-1.png"), outputBanHoverFolder.resolve(outputFilename));
-                replaceFileAndUpdateTimestamp(inputBanLockedFolder.resolve("-1.png"), outputBanLockedFolder.resolve(outputFilename));
+                Path   inFile = findFile(inputBanHoverFolder, "-1");
+                String ext    = getExt(inFile);
+                replaceFileAndUpdateTimestamp(inFile, outputBanHoverFolder.resolve(outputFilename + ext));
+                
+                inFile = findFile(inputBanLockedFolder, "-1");
+                ext = getExt(inFile);
+                replaceFileAndUpdateTimestamp(inFile, outputBanLockedFolder.resolve(outputFilename + ext));
+                
+                inFile = findFile(inputSelectHoverFolder, "-1");
+                ext = getExt(inFile);
+                replaceFileAndUpdateTimestamp(inFile, outputSelectHoverFolder.resolve(outputFilename + ext));
+                
+                inFile = findFile(inputSelectLockedFolder, "-1");
+                ext = getExt(inFile);
+                replaceFileAndUpdateTimestamp(inFile, outputSelectLockedFolder.resolve(outputFilename + ext));
             }
+        }
+    }
+    
+    private Path findFile(Path folder, String filename)
+    {
+        try
+        {
+            return Files.list(folder)
+                        .filter(p -> p.getFileName().toString().startsWith(filename))
+                        .findFirst()
+                        .orElse(null);
+        } catch (IOException e)
+        {
+            e.printStackTrace();
+            return null;
         }
     }
     

@@ -9,14 +9,16 @@ public class MainClass
     {
         List<String> allowedArgs = Arrays.asList("client", "server");
         
-        if (args.length < 2 || args.length > 7)
+        if (args.length < 2 || args.length > 8)
         {
             System.err.println("Invalid argument count, expected between 2 and 7");
+            System.exit(0);
         }
         
         if (!allowedArgs.contains(args[0]))
         {
             System.err.println("Invalid argument, expected first argument to match 'server' or 'client'");
+            System.exit(0);
         }
         
         int offset = 0;
@@ -45,9 +47,11 @@ public class MainClass
             } catch (NumberFormatException e)
             {
                 System.err.println("Invalid argument, expected a port number after 'server'");
+                System.exit(0);
             }
             
-            if (args.length - offset > 2)
+            int total = args.length - offset;
+            if (total > 2)
             {
                 if (args[offset + 2].equalsIgnoreCase("client"))
                 {
@@ -58,7 +62,17 @@ public class MainClass
                 List<String> valids = Arrays.asList("true", "false");
                 if (valids.contains(args[offset + 2]))
                 {
-                    temp.test = Boolean.parseBoolean(args[offset + 2]);
+                    temp.ingame = Boolean.parseBoolean(args[offset + 2]);
+                    if (total == 3)
+                    {
+                        new Thread(() -> new Server(temp.port, temp.ingame, temp.test)).start();
+                        return offset + 3;
+                    }
+                }
+                
+                if (valids.contains(args[offset + 3]))
+                {
+                    temp.test = Boolean.parseBoolean(args[offset + 3]);
                     new Thread(() -> new Server(temp.port, temp.ingame, temp.test)).start();
                     return offset + 3;
                 }
@@ -74,6 +88,7 @@ public class MainClass
             if (args.length - offset < 3)
             {
                 System.err.println("Expected 3 arguments for client (port, input, output)");
+                System.exit(0);
             }
             
             int port = 2997;
@@ -83,6 +98,7 @@ public class MainClass
             } catch (NumberFormatException e)
             {
                 System.err.println("Invalid argument, expected a port number after 'client'");
+                System.exit(0);
             }
             
             int  finalPort    = port;
