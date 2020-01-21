@@ -110,28 +110,28 @@ public class Client
                                               .map(Path::toString)
                                               .map(s -> s.substring(s.lastIndexOf('\\') + 1))
                                               // remove ext
-                                              .map(s -> s.substring(0, s.length() - 4))
+                                              .map(s -> s.substring(0, s.lastIndexOf('.')))
                                               .collect(Collectors.toList());
         
         List<String> selectFilesHovered = Files.list(inputSelectHoverFolder)
                                                .map(Path::toString)
                                                .map(s -> s.substring(s.lastIndexOf('\\') + 1))
                                                // remove ext
-                                               .map(s -> s.substring(0, s.length() - 4))
+                                               .map(s -> s.substring(0, s.lastIndexOf('.')))
                                                .collect(Collectors.toList());
         
         List<String> hoverBanFiles = Files.list(inputBanHoverFolder)
                                           .map(Path::toString)
                                           .map(s -> s.substring(s.lastIndexOf('\\') + 1))
                                           // remove ext
-                                          .map(s -> s.substring(0, s.length() - 4))
+                                          .map(s -> s.substring(0, s.lastIndexOf('.')))
                                           .collect(Collectors.toList());
         
         List<String> lockedBanFiles = Files.list(inputBanLockedFolder)
                                            .map(Path::toString)
                                            .map(s -> s.substring(s.lastIndexOf('\\') + 1))
                                            // remove ext
-                                           .map(s -> s.substring(0, s.length() - 4))
+                                           .map(s -> s.substring(0, s.lastIndexOf('.')))
                                            .collect(Collectors.toList());
         
         List<Integer> ids = new ArrayList<>(champions.keySet());
@@ -171,7 +171,7 @@ public class Client
                                                .map(Path::toString)
                                                .map(s -> s.substring(s.lastIndexOf('\\') + 1))
                                                // remove ext
-                                               .map(s -> s.substring(0, s.length() - 4))
+                                               .map(s -> s.substring(0, s.lastIndexOf('.')))
                                                .collect(Collectors.toList());
         
         ids = new ArrayList<>(spells.keySet());
@@ -195,7 +195,7 @@ public class Client
     {
         try
         {
-            String      ext = localName.substring(localName.length() - 4);
+            String      ext = localName.substring(localName.lastIndexOf('.'));
             InputStream is  = Client.class.getClassLoader().getResourceAsStream(localName);
             Files.copy(is, outputFolder.resolve(filename + ext), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e)
@@ -457,7 +457,8 @@ public class Client
     
     private String getExt(Path path)
     {
-        return path.getFileName().toString().substring(path.getFileName().toString().length() - 4);
+        String filename = path.getFileName().toString();
+        return filename.substring(filename.lastIndexOf('.'));
     }
     
     private void handleChampionSelectEvent(JsonElement jsonElement)
