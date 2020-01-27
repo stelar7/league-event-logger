@@ -26,10 +26,13 @@ public class Server
         new Server(2997, true, true);
     }
     
+    WebsocketServer ws = new WebsocketServer(2998);
+    
     public Server(int serverPort, boolean ingameThread, boolean testThread)
     {
         Thread socket = createSocketThread(serverPort);
         socket.start();
+        ws.start();
         
         Thread th = createLCUThread();
         th.start();
@@ -125,6 +128,8 @@ public class Server
                 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream()));
                 bw.write(content);
                 bw.flush();
+                
+                ws.broadcast(content);
                 
                 // System.out.println("Wrote line: \"" + content + "\"");
             } catch (IOException e)
@@ -581,7 +586,7 @@ public class Server
     {
         if (Objects.equals(id, "18446744073709551615") || Objects.equals(id, "0"))
         {
-            return "-1";
+            return "0";
         }
         
         /*
