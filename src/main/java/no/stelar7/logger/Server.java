@@ -104,8 +104,10 @@ public class Server
     {
         String content = String.format("{\"%s\":%s}%n", name, data);
         
+        /*
         Path file = Paths.get("D:\\LCU\\events.json");
         pushToFile(file, content);
+        */
         
         /*
         if (name.equalsIgnoreCase("FINISH"))
@@ -392,16 +394,12 @@ public class Server
             pushEvent("RESET", "{}");
         } else
         {
-            try
-            {
+                /*
                 Path file = Paths.get("D:\\LCU\\events.json");
                 Files.deleteIfExists(file);
-                pushEvent("RESET", "{}");
-                canSave = true;
-            } catch (IOException e)
-            {
-                e.printStackTrace();
-            }
+                */
+            pushEvent("RESET", "{}");
+            canSave = true;
         }
         
         state.clear();
@@ -466,7 +464,7 @@ public class Server
     {
         eventData = eventData.substring("{\"OnJsonApiEvent_lol-champ-select_v1_session\":".length(), eventData.length() - 1);
         
-        pushToFile(Paths.get("D:\\LCU\\FULL.json"), eventData + "\n");
+        //pushToFile(Paths.get("D:\\LCU\\FULL.json"), eventData + "\n");
         
         LCUChampSelectCallback event = gson.fromJson(eventData, LCUChampSelectCallback.class);
         if (event.eventType.equalsIgnoreCase("Create"))

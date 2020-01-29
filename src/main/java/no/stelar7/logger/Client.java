@@ -48,7 +48,7 @@ public class Client
     
     public Client(Path inputFolder, Path outputFolder, int serverPort)
     {
-        this.inputFolder = Paths.get("D:\\LCU\\INPUT");
+        this.inputFolder = inputFolder != null ? inputFolder : Paths.get("D:\\LCU\\INPUT");
         inputSpellFolder = inputFolder.resolve("spells");
         inputSelectHoverFolder = inputFolder.resolve("selectHover");
         inputSelectLockedFolder = inputFolder.resolve("selectLocked");
@@ -56,7 +56,7 @@ public class Client
         inputBanLockedFolder = inputFolder.resolve("banLocked");
         
         
-        this.outputFolder = Paths.get("D:\\LCU\\OUTPUT");
+        this.outputFolder = outputFolder != null ? outputFolder : Paths.get("D:\\LCU\\OUTPUT");
         outputPlayerNameFolder = outputFolder.resolve("names").resolve("players");
         outputChampionNameFolder = outputFolder.resolve("names").resolve("champions");
         outputSpellFolder = outputFolder.resolve("spells");
@@ -135,6 +135,7 @@ public class Client
                                            .collect(Collectors.toList());
         
         List<Integer> ids = new ArrayList<>(champions.keySet());
+        ids.add(0);
         ids.add(-1);
         ids.stream()
            .parallel()
@@ -175,6 +176,7 @@ public class Client
                                                .collect(Collectors.toList());
         
         ids = new ArrayList<>(spells.keySet());
+        ids.add(0);
         ids.add(-1);
         
         ids.stream()
@@ -457,8 +459,15 @@ public class Client
     
     private String getExt(Path path)
     {
-        String filename = path.getFileName().toString();
-        return filename.substring(filename.lastIndexOf('.'));
+        try
+        {
+            String filename = path.getFileName().toString();
+            return filename.substring(filename.lastIndexOf('.'));
+        } catch (NullPointerException e)
+        {
+            System.out.println("Failed to find file (defaulting to png): " + path);
+            return "png";
+        }
     }
     
     private void handleChampionSelectEvent(JsonElement jsonElement)
