@@ -106,33 +106,11 @@ public class Client
     private void downloadBaseImages(Map<Integer, StaticChampion> champions, Map<Integer, StaticSummonerSpell> spells) throws IOException
     {
         System.out.println("Feching missing images...");
-        List<String> selectFilesLocked = Files.list(inputSelectLockedFolder)
-                                              .map(Path::toString)
-                                              .map(s -> s.substring(s.lastIndexOf('\\') + 1))
-                                              // remove ext
-                                              .map(s -> s.substring(0, s.lastIndexOf('.')))
-                                              .collect(Collectors.toList());
         
-        List<String> selectFilesHovered = Files.list(inputSelectHoverFolder)
-                                               .map(Path::toString)
-                                               .map(s -> s.substring(s.lastIndexOf('\\') + 1))
-                                               // remove ext
-                                               .map(s -> s.substring(0, s.lastIndexOf('.')))
-                                               .collect(Collectors.toList());
-        
-        List<String> hoverBanFiles = Files.list(inputBanHoverFolder)
-                                          .map(Path::toString)
-                                          .map(s -> s.substring(s.lastIndexOf('\\') + 1))
-                                          // remove ext
-                                          .map(s -> s.substring(0, s.lastIndexOf('.')))
-                                          .collect(Collectors.toList());
-        
-        List<String> lockedBanFiles = Files.list(inputBanLockedFolder)
-                                           .map(Path::toString)
-                                           .map(s -> s.substring(s.lastIndexOf('\\') + 1))
-                                           // remove ext
-                                           .map(s -> s.substring(0, s.lastIndexOf('.')))
-                                           .collect(Collectors.toList());
+        List<String> selectFilesLocked  = getFilenamesNoExt(inputSelectLockedFolder);
+        List<String> selectFilesHovered = getFilenamesNoExt(inputSelectHoverFolder);
+        List<String> hoverBanFiles      = getFilenamesNoExt(inputBanHoverFolder);
+        List<String> lockedBanFiles     = getFilenamesNoExt(inputBanLockedFolder);
         
         List<Integer> ids = new ArrayList<>(champions.keySet());
         ids.add(0);
@@ -168,13 +146,7 @@ public class Client
                }
            });
         
-        List<String> summonerSpellFiles = Files.list(inputSpellFolder)
-                                               .map(Path::toString)
-                                               .map(s -> s.substring(s.lastIndexOf('\\') + 1))
-                                               // remove ext
-                                               .map(s -> s.substring(0, s.lastIndexOf('.')))
-                                               .collect(Collectors.toList());
-        
+        List<String> summonerSpellFiles = getFilenamesNoExt(inputSpellFolder);
         ids = new ArrayList<>(spells.keySet());
         ids.add(0);
         ids.add(-1);
@@ -191,6 +163,15 @@ public class Client
                    optUrl.ifPresentOrElse(url -> downloadFile(inputSpellFolder, filename + ".png", url), () -> copyFileFromLocal("noSpell.png", inputSpellFolder, filename));
                }
            });
+    }
+    
+    private List<String> getFilenamesNoExt(Path folder) throws IOException
+    {
+        return Files.list(folder)
+                    .map(Path::toString)
+                    .map(s -> s.substring(s.lastIndexOf('\\') + 1))
+                    .map(s -> s.substring(0, s.lastIndexOf('.')))
+                    .collect(Collectors.toList());
     }
     
     private void copyFileFromLocal(String localName, Path outputFolder, String filename)
